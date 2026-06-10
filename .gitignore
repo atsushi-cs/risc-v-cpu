@@ -1,0 +1,25 @@
+# Compiled simulation binaries
+*.out
+*.vvp
+
+# Waveform dumps (can be huge)
+*.vcd
+*.lxt
+*.fst
+
+# Simulation output folder
+sim/
+
+# Synthesis outputs (if you use Vivado/Quartus later)
+*.bit
+*.bin
+runs/
+*.jou
+*.log
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
