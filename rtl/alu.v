@@ -4,8 +4,6 @@ input [5:0] operation,
 output [31:0] result, 
 output zero);
 
-wire mulh;
-
 always @(*) begin
     case (operation)
         6'b000000:
