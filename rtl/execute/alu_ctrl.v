@@ -64,7 +64,9 @@ always @(*) begin
                     operation = 6'b001001; //sltiu
                 default: operation = 6'b111111;
             endcase
-        default: operation = 6'b111111; 
+        7'b0010111: //auipc: rd = PC + imm
+            operation = 6'b000000; //add
+        default: operation = 6'b111111;
     endcase
 end
 endmodule

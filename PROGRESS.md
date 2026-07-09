@@ -16,12 +16,15 @@ shift/comparison behavior (SRA vs SRL, SLT vs SLTU). All tests passing.
 **Next:** I-type instructions (ALU control decoding + immediate handling)
 
 ## 2026-07-09
-Completed and tested the immediate generator, covering all five RISC-V 
-instruction formats (I, S, B, U, J). Handled the trickier cases directly — 
-zero-extension for shift amounts (SLLI/SRLI/SRAI) instead of sign extension, 
-and the scrambled bit ordering for B-type and J-type immediates. All test 
-cases passing, including sign-extension edge cases for negative immediates.
+Completed the control unit — decodes opcode into all datapath control signals 
+(reg_write, alu_src, mem_read, mem_write, mem_to_reg, branch, jump). Extended 
+the design mid-build to handle two edge cases: added a second ALU-source signal 
+(alu_src_a) to let AUIPC use PC instead of a register as the first ALU operand, 
+and widened mem_to_reg to 2 bits to support a 4-way writeback mux (ALU result / 
+memory / PC+4 / immediate bypass for LUI). Wrote and passed a full testbench 
+covering every instruction type plus the default case.
 
-**Status:** ALU, register file, and immediate generator all complete and tested  
-**Next:** Control unit (opcode → control signals), then wire everything 
-together in cpu_top for a working single-cycle CPU
+**Status:** ALU, register file, immediate generator, and control unit all 
+complete and tested — every standalone module for the single-cycle datapath is done.  
+**Next:** Build PC register and instruction/data memory, then wire everything 
+together in cpu_top for a working single-cycle CPU.
