@@ -36,7 +36,7 @@ always @(*) begin
                     operation = 6'b001000; //slt
                 3'b011:
                     operation = 6'b001001; //sltu
-                default: operation = 6'b111111
+                default: operation = 6'b111111;
             endcase
         7'b0010011: //i-type instructions
             case (func3)
