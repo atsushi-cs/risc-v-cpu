@@ -21,6 +21,11 @@ always @(*) begin
             endcase
         end
 
+        7'b0000011, 7'b1100111: begin // loads, jalr: plain I-type immediate
+            imm_bits = instruction[31:20];
+            immediate = {{20{imm_bits[11]}}, imm_bits};
+        end
+
         7'b0100011: begin
             upper_imm = instruction [31:25];
             imm_bits = {upper_imm, instruction[11:7]};
