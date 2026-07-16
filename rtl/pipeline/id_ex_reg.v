@@ -11,6 +11,7 @@ module id_ex_reg (
     input [4:0] rd_in,
     input [2:0] func3_in,
     input [6:0] func7_in,
+    input [6:0] opcode_in,
     input [4:0] rs1_in,
     input [4:0] rs2_in,
     input mem_read_in,
@@ -29,6 +30,7 @@ module id_ex_reg (
     output reg [4:0] rd_out,
     output reg [2:0] func3_out,
     output reg [6:0] func7_out,
+    output reg [6:0] opcode_out,
     output reg [4:0] rs1_out,
     output reg [4:0] rs2_out,
     output reg mem_read_out,
@@ -50,6 +52,7 @@ module id_ex_reg (
             rd_out <= 0;
             func3_out <= 0;
             func7_out <= 0;
+            opcode_out <= 0;
             rs1_out <= 0;
             rs2_out <= 0;
             mem_read_out <= 0;
@@ -68,6 +71,7 @@ module id_ex_reg (
             rd_out <= rd_in;
             func3_out <= func3_in;
             func7_out <= func7_in;
+            opcode_out <= opcode_in;
             rs1_out <= rs1_in;
             rs2_out <= rs2_in;
             mem_read_out <= mem_read_in;
