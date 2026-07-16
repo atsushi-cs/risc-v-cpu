@@ -36,6 +36,7 @@ always @(*) begin
             else begin
                 result = 0;
             end
+        default: result = 32'b0; //unsupported operation
     endcase
 end
 

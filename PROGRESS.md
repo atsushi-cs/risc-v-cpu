@@ -28,3 +28,41 @@ covering every instruction type plus the default case.
 complete and tested — every standalone module for the single-cycle datapath is done.  
 **Next:** Build PC register and instruction/data memory, then wire everything 
 together in cpu_top for a working single-cycle CPU.
+
+## 2026-07-16
+Completed the full single-cycle RV32I datapath and began pipelining.
+
+**Modules built and unit-tested:**
+- PC register (synchronous reset, loads pc_next each cycle)
+- Instruction memory — byte-addressed, little-endian, parameterized MEM_FILE for loading hex programs
+- Data memory — byte-addressed, little-endian, word-level load/store (lb/lh/sb/sh deferred)
+- Branch unit — self-contained comparator for all six branch types (beq/bne/blt/bge/bltu/bgeu), signed vs. unsigned handled explicitly rather than relying on ALU reuse
+
+**cpu_top — full single-cycle datapath wired and integration tested:**
+- PC → instruction memory → instruction field slicing → regfile/immgen/control/branch_unit
+- Asel/Bsel muxes for ALU operands (PC vs register, immediate vs register), supporting AUIPC's PC-relative addressing
+- ALU → data memory → 4-way writeback mux (ALU result / memory / PC+4 / immediate bypass for LUI)
+- Next-PC logic distinguishing JALR (register-relative target, LSB cleared per spec) from JAL/branch (PC-relative target)
+- Verified with a hand-assembled 17-instruction test program exercising every instruction type (R, I, load, store, both branch outcomes, JAL, JALR, LUI, AUIPC) — all register and memory checks passed
+
+**Pipelining — started:**
+- Built and tested the IF/ID pipeline register (latches pc_current and instruction across the clock edge, synchronous reset)
+
+**Status:** Single-cycle CPU complete and fully verified. Pipelining underway.  
+**Next:** ID/EX, EX/MEM, MEM/WB pipeline registers, then restructure cpu_top 
+to use them (expect incorrect results on dependent instructions until hazard 
+detection/forwarding is added).
+
+## 2026-07-16 (cont.)
+Built the remaining pipeline registers — ID/EX, EX/MEM, and MEM/WB — completing 
+the full 4-stage pipeline register chain (IF/ID → ID/EX → EX/MEM → MEM/WB). 
+Each register latches its stage's relevant data and control signals forward 
+on the clock edge, with synchronous reset clearing all outputs to 0.
+
+**Status:** All four pipeline registers built. cpu_top still needs to be 
+restructured to actually route signals through them instead of the single-cycle 
+combinational wiring.  
+**Next:** Rewire cpu_top to use the pipeline registers end-to-end. Expect 
+incorrect results on programs with data dependencies (RAW hazards) and 
+branches/jumps until forwarding, hazard detection, and proper branch-resolution 
+timing are added — that's the work right after this.

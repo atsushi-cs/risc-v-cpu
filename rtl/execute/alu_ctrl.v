@@ -66,6 +66,10 @@ always @(*) begin
             endcase
         7'b0010111: //auipc: rd = PC + imm
             operation = 6'b000000; //add
+        7'b0000011: //loads: address = rs1 + imm
+            operation = 6'b000000; //add
+        7'b0100011: //stores: address = rs1 + imm
+            operation = 6'b000000; //add
         default: operation = 6'b111111;
     endcase
 end
