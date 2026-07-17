@@ -1,7 +1,8 @@
 module id_ex_reg (
     input clk,
     input reset,
-    
+    input flush,
+
     input [31:0] rdata1_in,
     input [31:0] rdata2_in,
     input [31:0] immediate_in,
@@ -42,7 +43,7 @@ module id_ex_reg (
 );
 
     always @(posedge clk) begin
-        if (reset == 1) begin
+        if (reset == 1 || flush == 1) begin
             rdata1_out <= 0;
             rdata2_out <= 0;
             immediate_out <= 0;

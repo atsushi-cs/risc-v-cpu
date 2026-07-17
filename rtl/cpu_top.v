@@ -6,8 +6,10 @@ module cpu_top (input clk, input reset);
     wire [31:0] pc_current;
     wire [31:0] pc_next;
     wire [31:0] instruction;
+    wire        stall;
+    wire        pc_src_EX; // forward-declared: EX-stage branch/jump resolution flushes IF/ID and ID/EX
 
-    pc_reg PC_REG (.clk(clk), .reset(reset), .pc_next(pc_next), .pc_current(pc_current));
+    pc_reg PC_REG (.clk(clk), .reset(reset), .stall(stall), .pc_next(pc_next), .pc_current(pc_current));
     imem IMEM (.address(pc_current), .instruction(instruction));
 
     //======================================================================
@@ -17,7 +19,7 @@ module cpu_top (input clk, input reset);
     wire [31:0] instruction_ID;
 
     if_id_reg IF_ID_REG (
-        .clk(clk), .reset(reset),
+        .clk(clk), .reset(reset), .stall(stall), .flush(pc_src_EX),
         .pc_current_in(pc_current), .instruction_in(instruction),
         .pc_current_out(pc_current_ID), .instruction_out(instruction_ID)
     );
@@ -82,7 +84,7 @@ module cpu_top (input clk, input reset);
     wire        Br_EX, Jump_EX;
 
     id_ex_reg ID_EX_REG (
-        .clk(clk), .reset(reset),
+        .clk(clk), .reset(reset), .flush(stall || pc_src_EX),
         .rdata1_in(rdata1_ID), .rdata2_in(rdata2_ID), .immediate_in(immediate_ID), .pc_current_in(pc_current_ID),
         .alu_src_in(ImmSel_ID), .alu_src_a_in(Asel_ID), .rd_in(rd_ID), .func3_in(funct3_ID), .func7_in(funct7_ID),
         .opcode_in(opcode_ID), .rs1_in(rs1_ID), .rs2_in(rs2_ID), .mem_read_in(mem_read_ID), .mem_write_in(mem_write_ID),
@@ -95,6 +97,24 @@ module cpu_top (input clk, input reset);
     );
 
     //======================================================================
+    // Hazard detection (load-use stall: freeze IF/ID + PC, bubble ID/EX)
+    //======================================================================
+    hazard_unit HAZ_UNIT (
+        .rs1_id(rs1_ID), .rs2_id(rs2_ID),
+        .rd_ex(rd_EX), .mem_read_ex(mem_read_EX),
+        .stall(stall)
+    );
+
+    //======================================================================
+    // EX/MEM (forward-declared: needed by the EX-stage forwarding unit below)
+    //======================================================================
+    wire [31:0] alu_result_MEM, rdata2_MEM, pc_current_MEM, immediate_MEM;
+    wire [4:0]  rd_MEM;
+    wire        mem_read_MEM, mem_write_MEM;
+    wire [1:0]  WBSel_MEM;
+    wire        regWEn_MEM;
+
+    //======================================================================
     // EX stage
     //======================================================================
     wire [31:0] Asel_out;
@@ -102,22 +122,35 @@ module cpu_top (input clk, input reset);
     wire [31:0] alu_result;
     wire        alu_zero;
     wire        branch_taken;
+    wire [1:0]  forward_a;
+    wire [1:0]  forward_b;
+    wire [31:0] rdata1_forwarded;
+    wire [31:0] rdata2_forwarded;
+    
+    forwarding_unit fwd_unit(.rd_exmem(rd_MEM), .reg_write_exmem(regWEn_MEM), .rd_memwb(rd_WB), .reg_write_memwb(regWEn_WB), .rs1_idex(rs1_EX), .rs2_idex(rs2_EX), .forward_a(forward_a), .forward_b(forward_b));
+    assign rdata1_forwarded = (forward_a == 2'b01) ? alu_result_MEM :
+                              (forward_a == 2'b10) ? wdata_WB :
+                              rdata1_EX;
 
-    assign Asel_out = Asel_EX ? pc_current_EX : rdata1_EX;
-    assign Bsel_out = ImmSel_EX ? immediate_EX : rdata2_EX;
+    assign rdata2_forwarded = (forward_b == 2'b01) ? alu_result_MEM :
+                              (forward_b == 2'b10) ? wdata_WB :
+                              rdata2_EX;
+
+
+    assign Asel_out = Asel_EX ? pc_current_EX : rdata1_forwarded;
+    assign Bsel_out = ImmSel_EX ? immediate_EX : rdata2_forwarded;
 
     alu_top ALU (.a(Asel_out), .b(Bsel_out), .func3(funct3_EX), .func7(funct7_EX), .opcode(opcode_EX), .result(alu_result), .zero(alu_zero));
-    branch_unit COMP (.rs1_data(rdata1_EX), .rs2_data(rdata2_EX), .func3(funct3_EX), .branch(Br_EX), .branch_taken(branch_taken));
+    branch_unit COMP (.rs1_data(rdata1_forwarded), .rs2_data(rdata2_forwarded), .func3(funct3_EX), .branch(Br_EX), .branch_taken(branch_taken));
 
 
     wire [31:0] pc_plus_imm_EX;
     wire [31:0] jalr_sum_EX;
     wire [31:0] jalr_target_EX;
     wire [31:0] branch_target_EX;
-    wire        pc_src_EX;
 
     assign pc_plus_imm_EX   = pc_current_EX + immediate_EX;
-    assign jalr_sum_EX      = rdata1_EX + immediate_EX;
+    assign jalr_sum_EX      = rdata1_forwarded + immediate_EX;
     assign jalr_target_EX   = {jalr_sum_EX[31:1], 1'b0};
     assign branch_target_EX = (opcode_EX == 7'b1100111) ? jalr_target_EX : pc_plus_imm_EX;
     assign pc_src_EX        = branch_taken || Jump_EX;
@@ -127,15 +160,9 @@ module cpu_top (input clk, input reset);
     //======================================================================
     // EX/MEM
     //======================================================================
-    wire [31:0] alu_result_MEM, rdata2_MEM, pc_current_MEM, immediate_MEM;
-    wire [4:0]  rd_MEM;
-    wire        mem_read_MEM, mem_write_MEM;
-    wire [1:0]  WBSel_MEM;
-    wire        regWEn_MEM;
-
     ex_mem_reg EX_MEM_REG (
         .clk(clk), .reset(reset),
-        .alu_result_in(alu_result), .rdata2_in(rdata2_EX), .pc_current_in(pc_current_EX), .immediate_in(immediate_EX),
+        .alu_result_in(alu_result), .rdata2_in(rdata2_forwarded), .pc_current_in(pc_current_EX), .immediate_in(immediate_EX),
         .rd_in(rd_EX), .mem_read_in(mem_read_EX), .mem_write_in(mem_write_EX), .mem_to_reg_in(WBSel_EX), .reg_write_in(regWEn_EX),
 
         .alu_result_out(alu_result_MEM), .rdata2_out(rdata2_MEM), .pc_current_out(pc_current_MEM), .immediate_out(immediate_MEM),
