@@ -66,3 +66,23 @@ combinational wiring.
 incorrect results on programs with data dependencies (RAW hazards) and 
 branches/jumps until forwarding, hazard detection, and proper branch-resolution 
 timing are added — that's the work right after this.
+
+## 2026-07-16 (cont.)
+Rewired cpu_top to route signals through the four pipeline registers 
+(IF/ID → ID/EX → EX/MEM → MEM/WB) instead of single-cycle combinational 
+wiring. Tested basic pipeline flow with spaced-out instructions (no 
+dependencies) — confirmed correct. As expected, back-to-back dependent 
+instructions and branches/jumps currently give wrong results, since 
+forwarding and hazard/flush logic don't exist yet.
+
+Built and tested the forwarding unit — detects RAW hazards independently 
+for rs1 and rs2 against both EX/MEM and MEM/WB, with EX/MEM given priority 
+when both match, and the x0 exception handled. Full test suite covering 
+no-hazard, single-source hazards, dual-match priority, x0 exclusion, 
+reg_write gating, and an independent-outputs cross-check — all passing.
+
+**Status:** Pipeline restructured and verified for independent instructions. 
+Forwarding unit complete and tested, not yet wired into cpu_top.  
+**Next:** Add the forwarding muxes in cpu_top (select between regfile value, 
+EX/MEM result, MEM/WB result using forward_a/forward_b), then build the 
+hazard detection unit for load-use stalls and branch/jump flush logic.
