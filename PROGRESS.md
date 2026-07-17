@@ -86,3 +86,28 @@ Forwarding unit complete and tested, not yet wired into cpu_top.
 **Next:** Add the forwarding muxes in cpu_top (select between regfile value, 
 EX/MEM result, MEM/WB result using forward_a/forward_b), then build the 
 hazard detection unit for load-use stalls and branch/jump flush logic.
+
+## 2026-07-17
+Completed the pipelined CPU. Wired the forwarding muxes into cpu_top — 
+forward_a/forward_b now select between the normal ID/EX register value, 
+the EX/MEM ALU result, and the MEM/WB writeback value, feeding into the 
+existing Asel/Bsel muxes (which still separately handle PC-vs-register and 
+immediate-vs-register selection). Finished forward_b, branch handling, and 
+jalr_sum_ex wiring.
+
+Built and integrated the hazard unit — detects load-use hazards (load in EX 
+whose destination matches an operand of the instruction behind it in ID) 
+and stalls the pipeline for one cycle (freezing PC and IF/ID, bubbling 
+ID/EX) to let forwarding take over once the load's result is available.
+
+Full pipeline — fetch through writeback, forwarding, and load-use stalling — 
+wired up in cpu_top and passing all tests.
+
+Wrote the project README summarizing the architecture, module list, hazard 
+handling, and build instructions.
+
+**Status:** Pipelined RV32I CPU complete. All data hazards (RAW via 
+forwarding, load-use via stalling) handled and verified.  
+**Next:** Open — possible directions include branch/control hazard handling 
+refinement (flush timing), byte/halfword load-store variants, or moving 
+toward synthesis.
